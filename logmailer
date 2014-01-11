@@ -54,10 +54,10 @@ while IFS= read -r LOG_MESSAGE_LINE; do
       HEADERS="From:$EMAIL_TO_SEND_FROM"
     
       # The message, we just add the run sha (as this changes between digest 'threads')
-      MESSAGE="$LOG_MESSAGE_LINE\nMessage run SHA: $UNIQUE_RUN_SHA"
+      MESSAGE="$LOG_MESSAGE_LINE \n Message run SHA: $UNIQUE_RUN_SHA"
     
       printf 'Email %s with subject %s and mesage %s\n' "$EMAIL_TO_SEND_TO" "$SUBJECT" "$MESSAGE"
-      echo "$MESSAGE" | mail -a"$HEADERS" -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
+      echo -e "$MESSAGE" | mail -a"$HEADERS" -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
     fi
   fi
 done <<< "$WATCH_RESULT"
