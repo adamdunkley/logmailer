@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Get script directory, even if it's symlinked: http://stackoverflow.com/a/246128
 SOURCE="${BASH_SOURCE[0]}"
