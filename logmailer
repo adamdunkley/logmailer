@@ -20,7 +20,6 @@ UNIQUE_RUN_SHA=""
 
 # Loop over every line
 while IFS= read -r LOG_MESSAGE_LINE; do
-  echo "MESSAGE: $LOG_MESSAGE_LINE"
   if [ -n "$LOG_MESSAGE_LINE" ];
   then    
     # Store old log message to see if it changes
