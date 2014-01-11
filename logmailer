@@ -1,45 +1,57 @@
 #!/bin/sh
 
+# Get script directory, even if it's symlinked: http://stackoverflow.com/a/246128
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
 FILE_TO_MONITOR=$1
-TMP_FILE=".$FILE_TO_MONITOR.logmailer.last.tmp"
-SHA_FILE=".$FILE_TO_MONITOR.logmailer.sha.tmp"
+EMAIL_TO_SEND_TO=$2
+EMAIL_TO_SEND_FROM=$3
 
-# get new shasum
-NEW_SHASUM=$(shasum "$FILE_TO_MONITOR")
-NEW_SHASUM=${NEW_SHASUM% *}
+# Get result of latest watch on file
+WATCH_RESULT=$(sh "$DIR/"logwatcher $FILE_TO_MONITOR)
 
-# checksum file does not exist, create it, save log state, and exit
-if [ ! -f "$SHA_FILE" ]
-then
-  # save checksum
-  echo $NEW_SHASUM > "$SHA_FILE"
-  echo "Created a new shasum file."
+UNIQUE_RUN_SHA=""
 
-  # save log state
-  cp "$FILE_TO_MONITOR" "$TMP_FILE"
-  echo "Save log state."
-
-  # do nothing this time
-  exit
-fi
-
-# get old checksum
-OLD_SHASUM=$(cat "$SHA_FILE")
-
-if [ $NEW_SHASUM == $OLD_SHASUM ]
-then
-  echo "No changes."
-else
-  echo "Changes detected:"
-
-  join -v 1 "$FILE_TO_MONITOR" "$TMP_FILE"
+# Loop over every line
+while IFS= read -r LOG_MESSAGE_LINE; do
+  echo "MESSAGE: $LOG_MESSAGE_LINE"
+  if [ -n "$LOG_MESSAGE_LINE" ];
+  then    
+    # Store old log message to see if it changes
+    OLD_LOG_MESSAGE_LINE=$LOG_MESSAGE_LINE
   
-  echo $NEW_SHASUM > "$SHA_FILE"
-  echo "Created a new shasum file."
+    # Clear nginx/FastCGI stuff out of message
+    LOG_MESSAGE_LINE=$(echo "$LOG_MESSAGE_LINE" | sed "s/^[0-9]\{1,4\}\/[0-9]\{1,2\}\/[0-9]\{1,2\} [0-9]\{1,2\}:[0-9]\{1,2\}:[0-9]\{1,2\} .* FastCGI sent in stderr: \"//")
 
-  # save log state
-  cp "$FILE_TO_MONITOR" "$TMP_FILE"
-  echo "Save log state."
-fi
-
-exit
+    # If the message has changed (and therefore there was nginx stuff in it)
+    if [ "$LOG_MESSAGE_LINE" != "$OLD_LOG_MESSAGE_LINE" ]
+    then
+      # We create a unique run SHA for this thread of messages
+      MILLISECONDS_SINCE_EPOCH=$(date +%s%N)
+      HOSTNAME=$(hostname)
+      UNIQUE_RUN_SHA=$(echo "$MILLISECONDS_SINCE_EPOCH$HOSTNAME" | shasum)
+    fi
+    
+    # Strip numbers for digest
+    DIGEST=$(echo "$LOG_MESSAGE_LINE" | sed "s/\" while reading response header from upstream.*$//")
+    DIGEST_SHA=$(echo "$DIGEST" | shasum)
+    
+    # Get the type of PHP message
+    PHP_MESSAGE_TYPE=$(expr "$LOG_MESSAGE_LINE" : "PHP message: \([^:]*\):")
+    
+    # The subject
+    SUBJECT="[$PHP_MESSAGE_TYPE] $DIGEST_SHA"
+    
+    # The message, we just add the run sha (as this changes between digest 'threads')
+    MESSAGE="From: <$EMAIL_TO_SEND_FROM>\n$LOG_MESSAGE_LINE\nMessage run SHA: $UNIQUE_RUN_SHA"
+    
+    printf 'Email %s with subject %s and mesage %s\n' "$EMAIL_TO_SEND_TO" "$SUBJECT" "$MESSAGE"
+    echo "$LOG_MESSAGE_LINE" | mail -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
+  fi
+done <<< "$WATCH_RESULT"

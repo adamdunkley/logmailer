@@ -1,0 +1,41 @@
+#!/bin/sh
+
+FILE_TO_MONITOR=$1
+TMP_FILE=".$FILE_TO_MONITOR.logmailer.last.tmp"
+SHA_FILE=".$FILE_TO_MONITOR.logmailer.sha.tmp"
+
+# get new shasum
+NEW_SHASUM=$(shasum "$FILE_TO_MONITOR")
+NEW_SHASUM=${NEW_SHASUM% *}
+
+# checksum file does not exist, create it, save log state, and exit
+if [ ! -f "$SHA_FILE" ]
+then
+  # Save checksum
+  echo $NEW_SHASUM > "$SHA_FILE"
+  echo "Created a new shasum file."
+
+  # save log state
+  cp "$FILE_TO_MONITOR" "$TMP_FILE"
+  echo "Save log state."
+
+  # Do nothing this time
+  exit
+fi
+
+# get old checksum
+OLD_SHASUM=$(cat "$SHA_FILE")
+
+if [ $NEW_SHASUM != $OLD_SHASUM ]
+then
+  # Print the diff of the files
+  comm -23 "$FILE_TO_MONITOR" "$TMP_FILE"
+  
+  # Update the checksum file
+  echo $NEW_SHASUM > "$SHA_FILE"
+
+  # Save log state
+  cp "$FILE_TO_MONITOR" "$TMP_FILE"
+fi
+
+exit
