@@ -13,12 +13,10 @@ if [ ! -f "$SHA_FILE" ]
 then
   # Save checksum
   echo $NEW_SHASUM > "$SHA_FILE"
-  echo "Created a new shasum file."
 
   # save log state
   cp "$FILE_TO_MONITOR" "$TMP_FILE"
-  echo "Save log state."
-
+  
   # Do nothing this time
   exit
 fi
