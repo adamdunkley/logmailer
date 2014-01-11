@@ -44,16 +44,20 @@ while IFS= read -r LOG_MESSAGE_LINE; do
     # Get the type of PHP message
     PHP_MESSAGE_TYPE=$(expr "$LOG_MESSAGE_LINE" : "PHP message: \([^:]*\):")
     
-    # The subject
-    SUBJECT="[$PHP_MESSAGE_TYPE] $DIGEST_SHA"
+    # Only deal with PHP messages for the moment
+    if [ -n "$PHP_MESSAGE_TYPE" ]
+    then    
+      # The subject
+      SUBJECT="[$PHP_MESSAGE_TYPE] $DIGEST_SHA"
     
-    # Headers
-    HEADERS="From:$EMAIL_TO_SEND_FROM"
+      # Headers
+      HEADERS="From:$EMAIL_TO_SEND_FROM"
     
-    # The message, we just add the run sha (as this changes between digest 'threads')
-    MESSAGE="$LOG_MESSAGE_LINE\nMessage run SHA: $UNIQUE_RUN_SHA"
+      # The message, we just add the run sha (as this changes between digest 'threads')
+      MESSAGE="$LOG_MESSAGE_LINE\nMessage run SHA: $UNIQUE_RUN_SHA"
     
-    printf 'Email %s with subject %s and mesage %s\n' "$EMAIL_TO_SEND_TO" "$SUBJECT" "$MESSAGE"
-    echo "$LOG_MESSAGE_LINE" | mail -a"$HEADERS" -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
+      printf 'Email %s with subject %s and mesage %s\n' "$EMAIL_TO_SEND_TO" "$SUBJECT" "$MESSAGE"
+      echo "$LOG_MESSAGE_LINE" | mail -a"$HEADERS" -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
+    fi
   fi
 done <<< "$WATCH_RESULT"
