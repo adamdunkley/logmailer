@@ -1,33 +1,45 @@
 #!/bin/sh
 
-# get new shasum
-NEW_SHASUM=$(shasum error.log)
+FILE_TO_MONITOR=$1
+TMP_FILE=".$FILE_TO_MONITOR.logmailer.last.tmp"
+SHA_FILE=".$FILE_TO_MONITOR.logmailer.sha.tmp"
+
+# get new shasum
+NEW_SHASUM=$(shasum "$FILE_TO_MONITOR")
 NEW_SHASUM=${NEW_SHASUM% *}
 
 # checksum file does not exist, create it, save log state, and exit
-if [ ! -f /tmp/error_shasum ]
+if [ ! -f "$SHA_FILE" ]
 then
   # save checksum
-  echo $NEW_SHASUM > /tmp/error_shasum
+  echo $NEW_SHASUM > "$SHA_FILE"
   echo "Created a new shasum file."
 
-  # save log state
-  cp error.log /tmp/error_backup
+  # save log state
+  cp "$FILE_TO_MONITOR" "$TMP_FILE"
+  echo "Save log state."
 
-  # do nothing this time
+  # do nothing this time
   exit
 fi
 
-# get old checksum
-OLD_SHASUM=$(cat /tmp/error_shasum)
+# get old checksum
+OLD_SHASUM=$(cat "$SHA_FILE")
 
-if [ "$NEW_SHASUM" == "$OLD_SHASUM" ]
+if [ $NEW_SHASUM == $OLD_SHASUM ]
 then
   echo "No changes."
 else
   echo "Changes detected:"
 
-  grep -f error.log /tmp/error_backup
+  join -v 1 "$FILE_TO_MONITOR" "$TMP_FILE"
+  
+  echo $NEW_SHASUM > "$SHA_FILE"
+  echo "Created a new shasum file."
+
+  # save log state
+  cp "$FILE_TO_MONITOR" "$TMP_FILE"
+  echo "Save log state."
 fi
 
 exit
