@@ -1,0 +1,4 @@
+logmailer
+=========
+
+Unix log mailer
