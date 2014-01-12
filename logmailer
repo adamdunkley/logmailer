@@ -21,10 +21,10 @@ UNIQUE_RUN_SHA=""
 # Loop over every line
 while IFS= read -r LOG_MESSAGE_LINE; do
   if [ -n "$LOG_MESSAGE_LINE" ];
-  then    
+  then
     # Store old log message to see if it changes
     OLD_LOG_MESSAGE_LINE=$LOG_MESSAGE_LINE
-  
+
     # Clear nginx/FastCGI stuff out of message
     LOG_MESSAGE_LINE=$(echo "$LOG_MESSAGE_LINE" | sed "s/^[0-9]\{1,4\}\/[0-9]\{1,2\}\/[0-9]\{1,2\} [0-9]\{1,2\}:[0-9]\{1,2\}:[0-9]\{1,2\} .* FastCGI sent in stderr: \"//")
 
@@ -36,28 +36,29 @@ while IFS= read -r LOG_MESSAGE_LINE; do
       HOSTNAME=$(hostname)
       UNIQUE_RUN_SHA=$(echo "$MILLISECONDS_SINCE_EPOCH$HOSTNAME" | shasum)
     fi
-    
+
     # Strip numbers for digest
     DIGEST=$(echo "$LOG_MESSAGE_LINE" | sed "s/\" while reading response header from upstream.*$//")
     DIGEST_SHA=$(echo "$DIGEST" | shasum)
-    
+
     # Get the type of PHP message
     PHP_MESSAGE_TYPE=$(expr "$LOG_MESSAGE_LINE" : "PHP message: \([^:]*\):")
-    
+
     # Only deal with PHP messages for the moment
     if [ -n "$PHP_MESSAGE_TYPE" ]
-    then    
+    then
       # The subject
       SUBJECT="[$PHP_MESSAGE_TYPE] $DIGEST_SHA"
-    
+
       # Headers
       HEADERS="From:$EMAIL_TO_SEND_FROM"
-    
+
       # The message, we just add the run sha (as this changes between digest 'threads')
       MESSAGE="$LOG_MESSAGE_LINE \n Message run SHA: $UNIQUE_RUN_SHA"
-    
+
       printf 'Email %s with subject %s and mesage %s\n' "$EMAIL_TO_SEND_TO" "$SUBJECT" "$MESSAGE"
       echo -e "$MESSAGE" | mail -a"$HEADERS" -s "$SUBJECT" "$EMAIL_TO_SEND_TO"
     fi
   fi
 done <<< "$WATCH_RESULT"
+
